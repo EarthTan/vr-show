@@ -10,9 +10,9 @@
     "test": "vitest run",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "dist:mac": "tauri build",
-    "dist:win": "tauri build",
-    "dist:linux": "tauri build"
+    "dist:mac": "tauri build && bash scripts/copy-bundles.sh macos",
+    "dist:win": "tauri build && bash scripts/copy-bundles.sh windows",
+    "dist:linux": "tauri build && bash scripts/copy-bundles.sh linux"
   },
   "dependencies": {
     "three": "^0.170.0"
