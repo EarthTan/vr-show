@@ -89,7 +89,7 @@ export class Viewer {
     this._lastX = e.clientX
     this._lastY = e.clientY
 
-    this.yaw -= dx * DRAG_SENSITIVITY
+    this.yaw += dx * DRAG_SENSITIVITY
     this.pitch -= dy * DRAG_SENSITIVITY
     if (this.pitch > PITCH_LIMIT) this.pitch = PITCH_LIMIT
     if (this.pitch < -PITCH_LIMIT) this.pitch = -PITCH_LIMIT
