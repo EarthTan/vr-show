@@ -1,0 +1,103 @@
+:root {
+  --bg: #0a0a0a;
+  --text: #e0e0e0;
+  --text-dim: #888;
+  --border: #2a2a2a;
+  --error: #e5484d;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+#viewer-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+#viewer-canvas.dragging { cursor: grabbing; }
+
+.empty-state {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  z-index: 10;
+  transition: opacity 0.3s ease;
+}
+
+.empty-state.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.empty-state-inner {
+  text-align: center;
+  padding: 48px 64px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.empty-state.drag-active .empty-state-inner {
+  border-color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.empty-state-icon { color: var(--text-dim); margin-bottom: 16px; }
+.empty-state-title { font-size: 20px; margin-bottom: 8px; }
+.empty-state-sub { font-size: 14px; color: var(--text-dim); }
+
+.hud {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: rgba(10, 10, 10, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--text-dim);
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.hud.visible { opacity: 1; }
+
+.error-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: var(--error);
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.error-banner.visible { opacity: 1; }
