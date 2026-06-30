@@ -1,7 +1,17 @@
-node_modules/
-dist/
-dist-tauri/
-.vite/
-.superpowers/
+# Rust
+/target
+**/target
+Cargo.lock
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs
 *.log

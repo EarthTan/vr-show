@@ -54,16 +54,18 @@
 | 用途 | Crate | 版本 | 备注 |
 |---|---|---|---|
 | 窗口 / 事件循环 | `winit` | 0.30 | 用 `ApplicationHandler` trait，事件驱动 |
-| GPU 抽象 | `wgpu` | 29 | Vulkan / Metal / DX12 / GLES，WGSL 着色器 |
+| GPU 抽象 | `wgpu` | 27 | Vulkan / Metal / DX12 / GLES，WGSL 着色器。spec 原计划 wgpu 29，实施时实测 `naga 26.x` 在 rustc ≥ 1.86 上因 `codespan-reporting` 兼容性问题无法编译（[gfx-rs/wgpu#7968](https://github.com/gfx-rs/wgpu/issues/7968)），回退到 wgpu 27（含修复） |
 | 数学 | `glam` | 0.29 | 矩阵、向量、四元数，glam 已是 wgpu 生态默认 |
 | 图像解码 | `image` | 0.25 | PNG / JPEG / WebP，统一接口 |
-| UI 框架 | `egui` | 0.32 | 即时模式 UI，纯 Rust。**与 `egui-wgpu` 版本必须严格同步**，实施时按当时 `egui-wgpu` 0.32.x 的实际依赖版本在 Cargo.toml 中精确锁版（egui-wgpu 历史上不一定每次都跟 egui 主版本同步更新） |
+| UI 框架 | `egui` | 0.33 | 即时模式 UI，纯 Rust。`egui-wgpu` + `egui-winit` 也用 0.33 系列。后续升级时四者一起升 |
 | 字体（egui 自带） | `egui` 默认 | — | 不用加载外部字体 |
 | 错误处理 | `thiserror` | 2 | 应用层错误类型 |
 | 日志 | `log` + `env_logger` | 0.4 / 0.11 | 警告输出到 stderr |
 | 序列化（如需） | — | — | 第一版不需要 |
 
-**不引入**：`tauri`、`tao`、`wgpu_glyph`、`glyphon`、`iced`、`fltk`、`anyhow`（用 `thiserror` + `Result<T, AppError>`）、`tokio`（单线程同步即可）。
+**不引入**：`tauri`、`tao`、`wgpu_glyph`、`glyphon`、`iced`、`fltk`、`anyhow`（用 `thiserror` + `Result<T, AppError>`）、`tokio`（单线程同步即可）、`rfd`（第一版不弹原生文件对话框，统一通过拖拽 + 命令行打开；如未来需要再添加）。
+
+**Rust MSRV**:1.88(wgpu 27 和 egui 0.33 的共同下限)。
 
 ## 架构
 

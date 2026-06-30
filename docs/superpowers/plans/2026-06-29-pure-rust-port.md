@@ -92,15 +92,16 @@ members = ["crates/vr-show"]
 [workspace.package]
 version = "0.2.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MIT"
 authors = ["asyncb"]
 
 [workspace.dependencies]
 winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
-wgpu = { version = "26", default-features = false, features = ["wgsl", "vulkan", "metal", "gles", "dx12"] }
-egui = "0.32"
-egui-wgpu = { version = "0.32", features = ["winit"] }
+wgpu = { version = "27", default-features = false, features = ["wgsl", "vulkan", "metal", "gles", "dx12"] }
+egui = "0.33"
+egui-wgpu = { version = "0.33", features = ["winit"] }
+egui-winit = "0.33"
 glam = "0.29"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 thiserror = "2"
@@ -139,6 +140,7 @@ winit = { workspace = true }
 wgpu = { workspace = true }
 egui = { workspace = true }
 egui-wgpu = { workspace = true }
+egui-winit = { workspace = true }
 glam = { workspace = true }
 image = { workspace = true }
 thiserror = { workspace = true }
