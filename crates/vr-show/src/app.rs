@@ -3,6 +3,7 @@ use crate::input::InputAction;
 use crate::renderer::Renderer;
 use crate::scene::camera::CameraState;
 use crate::window::WindowState;
+use std::path::{Path, PathBuf};
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, WindowEvent};
@@ -16,6 +17,8 @@ pub struct App {
     dragging: bool,
     last_pointer: Option<PhysicalPosition<f64>>,
     last_frame: Option<std::time::Instant>,
+    pub panorama: Option<crate::scene::texture::PanoramaTexture>,
+    pending_load: Option<PathBuf>,
 }
 
 impl App {
@@ -27,7 +30,40 @@ impl App {
             dragging: false,
             last_pointer: None,
             last_frame: None,
+            panorama: None,
+            pending_load: None,
         })
+    }
+
+    pub fn set_pending_load(&mut self, path: PathBuf) {
+        self.pending_load = Some(path);
+    }
+
+    pub fn load_panorama(&mut self, path: &Path) {
+        let Some(ws) = &self.window_state else {
+            return;
+        };
+        match crate::file::load_panorama(path) {
+            Ok(image) => {
+                if let Some(warning) = crate::file::aspect_ratio_warning(&image) {
+                    log::warn!("{warning}");
+                }
+                let texture = crate::scene::texture::PanoramaTexture::from_image(
+                    &ws.device, &ws.queue, &image,
+                );
+                // Recreate the renderer with the new texture.
+                let renderer = Renderer::new(&ws.device, ws.surface_format(), Some(&texture));
+                self.renderer = Some(renderer);
+                self.panorama = Some(texture);
+                // Reset camera: auto-rotate on for a fresh load.
+                self.camera = CameraState::default();
+                log::info!("loaded panorama: {}x{}", image.width(), image.height());
+            }
+            Err(e) => {
+                log::error!("failed to load panorama {path:?}: {e}");
+                // No banner UI yet; just log. The next task adds egui.
+            }
+        }
     }
 }
 
@@ -41,6 +77,9 @@ impl ApplicationHandler for App {
                 let renderer = Renderer::new(&ws.device, ws.surface_format(), None);
                 self.window_state = Some(ws);
                 self.renderer = Some(renderer);
+                if let Some(p) = self.pending_load.take() {
+                    self.load_panorama(&p);
+                }
             }
             Err(e) => log::error!("Failed to create window: {e}"),
         }
@@ -100,9 +139,10 @@ impl ApplicationHandler for App {
                         log::info!("first interaction: wheel");
                     }
                 }
-                InputAction::FilesDropped(_paths) => {
-                    // Loading from drop is handled in Task 14. For now log.
-                    log::info!("file drop received (not yet wired)");
+                InputAction::FilesDropped(paths) => {
+                    if let Some(p) = paths.into_iter().next() {
+                        self.load_panorama(&p);
+                    }
                 }
                 InputAction::FirstInteractionTriggered => {}
                 InputAction::Drag { .. } => unreachable!("drag handled above"),
