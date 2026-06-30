@@ -1,6 +1,7 @@
 mod app;
 mod error;
 mod file;
+mod input;
 mod renderer;
 mod scene;
 mod window;
