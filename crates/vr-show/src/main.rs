@@ -13,8 +13,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     log::info!("vr-show starting");
 
+    let cli_path = std::env::args().nth(1).map(std::path::PathBuf::from);
+
     let event_loop = EventLoop::new()?;
     let mut app = App::new()?;
+    if let Some(p) = cli_path {
+        app.set_pending_load(p);
+    }
     event_loop.run_app(&mut app)?;
 
     Ok(())
