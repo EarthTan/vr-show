@@ -24,3 +24,12 @@ log = { workspace = true }
 env_logger = { workspace = true }
 pollster = { workspace = true }
 bytemuck = { workspace = true }
+
+[package.metadata.deb]
+name = "vr-show"
+maintainer = "asyncb"
+copyright = "MIT"
+depends = "libc6, libgcc-s1"
+extended-description = "A 360 degree panoramic image viewer written in pure Rust.\n Supports PNG and JPEG equirectangular images."
+priority = "optional"
+section = "graphics"
