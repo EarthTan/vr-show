@@ -1,9 +1,9 @@
 use crate::error::AppError;
-use winit::window::Window;
+use std::sync::Arc;
 use winit::window::WindowAttributes;
 
 pub struct WindowState {
-    pub window: Window,
+    pub window: Arc<winit::window::Window>,
     pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -12,34 +12,36 @@ pub struct WindowState {
 
 impl WindowState {
     pub fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Result<Self, AppError> {
-        let window = event_loop
-            .create_window(
-                WindowAttributes::default()
-                    .with_title("360° 全景图查看器")
-                    .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 800.0)),
-            )
-            .map_err(AppError::Window)?;
+        let window = Arc::new(
+            event_loop
+                .create_window(
+                    WindowAttributes::default()
+                        .with_title("360° 全景图查看器")
+                        .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 800.0)),
+                )
+                .map_err(AppError::Window)?,
+        );
 
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
-        let surface = instance.create_surface(&window)?;
+        let surface = instance.create_surface(Arc::clone(&window))?;
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::default(),
             compatible_surface: Some(&surface),
             force_fallback_adapter: false,
         }))
-        .ok_or_else(|| AppError::RequestAdapter("no suitable adapter".into()))?;
-        let (device, queue) = pollster::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
+        .map_err(|e| AppError::RequestAdapter(format!("{e}")))?;
+        let (device, queue) =
+            pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
                 label: Some("vr-show_device"),
                 required_features: wgpu::Features::empty(),
                 required_limits: wgpu::Limits::downlevel_defaults(),
                 memory_hints: wgpu::MemoryHints::default(),
-            },
-            None,
-        ))?;
+                experimental_features: wgpu::ExperimentalFeatures::disabled(),
+                trace: wgpu::Trace::Off,
+            }))?;
 
         let surface_caps = surface.get_capabilities(&adapter);
         let surface_format = surface_caps

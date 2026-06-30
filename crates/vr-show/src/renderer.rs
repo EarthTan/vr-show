@@ -2,7 +2,8 @@ use crate::scene::camera::CameraState;
 use crate::scene::sphere::{SphereMesh, SphereVertex, SPHERE_RADIUS, SPHERE_SEGMENTS};
 use crate::scene::texture::PanoramaTexture;
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec3};
+use glam::Mat4;
+use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
@@ -193,14 +194,7 @@ impl Renderer {
     /// Update the camera uniform from current state and write to GPU.
     pub fn update_camera(&self, queue: &wgpu::Queue, camera: &CameraState, aspect: f32) {
         let proj = Mat4::perspective_rh(camera.current_fov.to_radians(), aspect, 0.1, 1100.0);
-        // Camera sits at origin looking down -Z; apply yaw then pitch on the
-        // camera's orientation (i.e. the view matrix is the inverse of the
-        // camera's world rotation). The world-up is +Y.
         let view_rot = camera.rotation();
-        // The view matrix is the inverse of the camera's world transform.
-        // Since the camera position is fixed at origin, the view rotation
-        // equals the inverse of `view_rot`. glam's inverse() for a Quat is
-        // conjugate() for unit quaternions.
         let view_rot_inv = view_rot.conjugate();
         let view = Mat4::from_quat(view_rot_inv);
         let view_proj = proj * view;
@@ -225,6 +219,7 @@ impl Renderer {
                     }),
                     store: wgpu::StoreOp::Store,
                 },
+                depth_slice: None,
             })],
             depth_stencil_attachment: None,
             timestamp_writes: None,
@@ -239,18 +234,7 @@ impl Renderer {
 }
 
 impl SphereMesh {
-    /// Convenience constructor using the canonical radius/segments. The build
-    /// logic lives in `sphere::build_sphere`; this method just centralizes the
-    /// default args so `Renderer::new` doesn't need to import the constants.
     pub fn build_or_default(radius: f32, segments: u32) -> Self {
         crate::scene::sphere::build_sphere(radius, segments)
     }
 }
-
-// Bring `create_buffer_init` into scope without requiring a separate
-// `wgpu::util::DeviceExt` import in callers.
-mod device_ext {
-    use wgpu::util::DeviceExt;
-    pub use DeviceExt as _;
-}
-pub(crate) use device_ext::*;
