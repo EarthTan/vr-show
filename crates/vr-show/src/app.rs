@@ -19,10 +19,16 @@ pub struct App {
     last_frame: Option<std::time::Instant>,
     pub panorama: Option<crate::scene::texture::PanoramaTexture>,
     pending_load: Option<PathBuf>,
+    // egui state
+    egui_ctx: egui::Context,
+    egui_renderer: Option<egui_wgpu::Renderer>,
+    egui_winit: Option<egui_winit::State>,
+    ui_state: crate::ui::UiState,
 }
 
 impl App {
     pub fn new() -> Result<Self, AppError> {
+        let egui_ctx = egui::Context::default();
         Ok(Self {
             window_state: None,
             renderer: None,
@@ -32,6 +38,10 @@ impl App {
             last_frame: None,
             panorama: None,
             pending_load: None,
+            egui_ctx: egui_ctx.clone(),
+            egui_renderer: None,
+            egui_winit: None,
+            ui_state: crate::ui::UiState::default(),
         })
     }
 
@@ -51,17 +61,17 @@ impl App {
                 let texture = crate::scene::texture::PanoramaTexture::from_image(
                     &ws.device, &ws.queue, &image,
                 );
-                // Recreate the renderer with the new texture.
                 let renderer = Renderer::new(&ws.device, ws.surface_format(), Some(&texture));
                 self.renderer = Some(renderer);
                 self.panorama = Some(texture);
-                // Reset camera: auto-rotate on for a fresh load.
                 self.camera = CameraState::default();
+                self.ui_state.show_panorama_loaded();
                 log::info!("loaded panorama: {}x{}", image.width(), image.height());
             }
             Err(e) => {
+                let msg = crate::ui::UiState::error_for_load_error(&e);
+                self.ui_state.show_error(msg, 3000);
                 log::error!("failed to load panorama {path:?}: {e}");
-                // No banner UI yet; just log. The next task adds egui.
             }
         }
     }
@@ -74,6 +84,24 @@ impl ApplicationHandler for App {
         }
         match WindowState::new(event_loop) {
             Ok(ws) => {
+                self.egui_renderer = Some(egui_wgpu::Renderer::new(
+                    &ws.device,
+                    ws.surface_format(),
+                    egui_wgpu::RendererOptions {
+                        depth_stencil_format: None,
+                        msaa_samples: 1,
+                        ..Default::default()
+                    },
+                ));
+                self.egui_winit = Some(egui_winit::State::new(
+                    self.egui_ctx.clone(),
+                    egui::viewport::ViewportId::ROOT,
+                    &ws.window,
+                    None,
+                    None,
+                    None,
+                ));
+
                 let renderer = Renderer::new(&ws.device, ws.surface_format(), None);
                 self.window_state = Some(ws);
                 self.renderer = Some(renderer);
@@ -91,7 +119,15 @@ impl ApplicationHandler for App {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        // Pointer tracking: handle drag ourselves because translate() is stateless.
+        // Forward to egui first.
+        if let (Some(ws), Some(egui_winit)) = (&self.window_state, &mut self.egui_winit) {
+            let response = egui_winit.on_window_event(&ws.window, &event);
+            if response.consumed {
+                return;
+            }
+        }
+
+        // Pointer tracking.
         match &event {
             WindowEvent::CursorMoved { position, .. } => {
                 if self.dragging {
@@ -125,7 +161,7 @@ impl ApplicationHandler for App {
             _ => {}
         }
 
-        // Typed events from the translator.
+        // Typed events.
         for action in crate::input::translate(&event) {
             match action {
                 InputAction::CloseRequested => event_loop.exit(),
@@ -171,7 +207,7 @@ impl App {
             .last_frame
             .map(|t| now.duration_since(t).as_secs_f32())
             .unwrap_or(0.016)
-            .min(0.1); // clamp to avoid huge jumps on resume
+            .min(0.1);
         self.last_frame = Some(now);
         self.camera.update(dt);
         renderer.update_camera(&ws.queue, &self.camera, ws.aspect());
@@ -197,8 +233,72 @@ impl App {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("frame_encoder"),
             });
+
+        // Render 3D scene.
         renderer.render(&mut encoder, &view);
-        ws.queue.submit(std::iter::once(encoder.finish()));
+
+        // Render egui UI.
+        let Some(egui_winit) = &mut self.egui_winit else {
+            return;
+        };
+        let Some(egui_renderer) = &mut self.egui_renderer else {
+            return;
+        };
+        let raw_input = egui_winit.take_egui_input(&ws.window);
+        self.egui_ctx.begin_pass(raw_input);
+        crate::ui::draw(&self.egui_ctx, &self.ui_state);
+        let output = self.egui_ctx.end_pass();
+        let paint_jobs = self
+            .egui_ctx
+            .tessellate(output.shapes, output.pixels_per_point);
+        for (id, image_delta) in &output.textures_delta.set {
+            egui_renderer.update_texture(&ws.device, &ws.queue, *id, image_delta);
+        }
+        let screen_descriptor = egui_wgpu::ScreenDescriptor {
+            size_in_pixels: [ws.config.width, ws.config.height],
+            pixels_per_point: ws.window.scale_factor() as f32,
+        };
+        let extra_cmds = egui_renderer.update_buffers(
+            &ws.device,
+            &ws.queue,
+            &mut encoder,
+            &paint_jobs,
+            &screen_descriptor,
+        );
+
+        // Submit 3D + egui command buffers.
+        ws.queue
+            .submit(std::iter::once(encoder.finish()).chain(extra_cmds));
+
+        // Second render pass for egui (on the frame's texture view).
+        let mut egui_encoder = ws
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("egui_encoder"),
+            });
+        {
+            let rpass = egui_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("egui_render_pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            egui_renderer.render(
+                &mut wgpu::RenderPass::forget_lifetime(rpass),
+                &paint_jobs,
+                &screen_descriptor,
+            );
+        }
+        ws.queue.submit(std::iter::once(egui_encoder.finish()));
         frame.present();
         ws.window.request_redraw();
     }

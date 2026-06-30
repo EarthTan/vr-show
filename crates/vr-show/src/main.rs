@@ -4,6 +4,7 @@ mod file;
 mod input;
 mod renderer;
 mod scene;
+mod ui;
 mod window;
 
 use app::App;
