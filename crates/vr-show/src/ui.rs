@@ -1,5 +1,8 @@
 use crate::error::LoadError;
-use egui::{Align2, Color32, Context, FontId, LayerId, Pos2, RichText, Stroke, StrokeKind, Vec2};
+use egui::{
+    Align2, Color32, Context, FontData, FontDefinitions, FontId, LayerId, Pos2, RichText, Stroke,
+    StrokeKind, Vec2,
+};
 
 #[derive(Debug)]
 pub struct UiState {
@@ -48,6 +51,45 @@ impl UiState {
             LoadError::Io(_, _) => "图片加载失败".to_string(),
         }
     }
+}
+
+/// Configure egui with a CJK-capable font loaded from the system.
+/// Tries several common locations; falls back to egui's default if none found.
+pub fn install_fonts(ctx: &Context) {
+    let mut fonts = FontDefinitions::default();
+    // Try several candidate system CJK font files (in order of preference).
+    let candidates: &[&str] = &[
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        "/usr/share/fonts/truetype/arphic/uming.ttc",
+        "/usr/share/fonts/truetype/arphic/ukai.ttc",
+    ];
+    for path in candidates {
+        if let Ok(bytes) = std::fs::read(path) {
+            fonts.font_data.insert(
+                "cjk".to_owned(),
+                std::sync::Arc::new(FontData::from_owned(bytes)),
+            );
+            // Insert into the proportional family so it is tried for any text.
+            fonts
+                .families
+                .get_mut(&egui::FontFamily::Proportional)
+                .unwrap()
+                .insert(0, "cjk".to_owned());
+            // And for monospace.
+            fonts
+                .families
+                .get_mut(&egui::FontFamily::Monospace)
+                .unwrap()
+                .insert(0, "cjk".to_owned());
+            log::info!("loaded CJK font from {path}");
+            break;
+        }
+    }
+    ctx.set_fonts(fonts);
 }
 
 pub fn draw(ctx: &Context, state: &UiState) {

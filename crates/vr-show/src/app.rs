@@ -29,6 +29,7 @@ pub struct App {
 impl App {
     pub fn new() -> Result<Self, AppError> {
         let egui_ctx = egui::Context::default();
+        crate::ui::install_fonts(&egui_ctx);
         Ok(Self {
             window_state: None,
             renderer: None,
