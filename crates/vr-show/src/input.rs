@@ -1,9 +1,10 @@
 use crate::error::LoadError;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use winit::dpi::PhysicalPosition;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent};
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum InputAction {
     Drag { dx: f32, dy: f32 },
     Wheel { delta_y: f32 },
@@ -21,10 +22,10 @@ pub fn translate(event: &WindowEvent) -> Vec<InputAction> {
             width: size.width,
             height: size.height,
         }),
-        WindowEvent::MouseInput { state, button, .. } => {
-            if *state == ElementState::Pressed && *button == MouseButton::Left {
-                // We don't translate press/release; pointer-move below handles drag.
-            }
+        WindowEvent::MouseInput { state, button, .. }
+            if *state == ElementState::Pressed && *button == MouseButton::Left =>
+        {
+            // We don't translate press/release; pointer-move below handles drag.
         }
         WindowEvent::CursorMoved { .. } => {
             // Handled by the App via a stored last position; this module is
@@ -37,11 +38,9 @@ pub fn translate(event: &WindowEvent) -> Vec<InputAction> {
             };
             out.push(InputAction::Wheel { delta_y });
         }
-        WindowEvent::Touch(touch) => {
-            if touch.phase == TouchPhase::Moved {
-                // Touch drag is exposed as a "delta"; the App must track
-                // last touch position to compute it.
-            }
+        WindowEvent::Touch(touch) if touch.phase == TouchPhase::Moved => {
+            // Touch drag is exposed as a "delta"; the App must track
+            // last touch position to compute it.
         }
         WindowEvent::DroppedFile(path) => out.push(InputAction::FilesDropped(vec![path.clone()])),
         WindowEvent::HoveredFileCancelled => {}
@@ -52,13 +51,14 @@ pub fn translate(event: &WindowEvent) -> Vec<InputAction> {
 
 /// Validate that a path looks like an image. Used by App when handling drops
 /// and command-line arguments.
-pub fn validate_image_path(path: &PathBuf) -> Result<(), LoadError> {
+#[allow(dead_code)]
+pub fn validate_image_path(path: &Path) -> Result<(), LoadError> {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
         .map(|s| s.to_ascii_lowercase());
     match ext.as_deref() {
         Some("png") | Some("jpg") | Some("jpeg") => Ok(()),
-        _ => Err(LoadError::NotAnImage(path.clone())),
+        _ => Err(LoadError::NotAnImage(path.to_path_buf())),
     }
 }

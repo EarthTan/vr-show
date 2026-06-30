@@ -1,6 +1,6 @@
-use crate::error::AppError;
 use image::DynamicImage;
 
+#[allow(dead_code)]
 pub struct PanoramaTexture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -63,7 +63,3 @@ impl PanoramaTexture {
         }
     }
 }
-
-// Silence unused-import warning when AppError isn't used yet.
-#[allow(dead_code)]
-fn _ensure_app_error_in_scope(_: AppError) {}

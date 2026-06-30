@@ -22,6 +22,7 @@ pub enum AppError {
     Surface(#[from] wgpu::CreateSurfaceError),
 
     #[error("surface lost")]
+    #[allow(dead_code)]
     SurfaceLost,
 }
 

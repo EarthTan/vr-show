@@ -18,6 +18,7 @@ pub struct Renderer {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub index_count: u32,
+    #[allow(dead_code)]
     pub sphere_mesh: SphereMesh,
 }
 
@@ -204,7 +205,7 @@ impl Renderer {
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[uniform]));
     }
 
-    pub fn render<'a>(&'a self, encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
+    pub fn render(&self, encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("pano_render_pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {

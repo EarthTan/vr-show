@@ -4,23 +4,12 @@ use egui::{
     StrokeKind, Vec2,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct UiState {
     pub error_text: Option<String>,
     pub error_show_until: Option<std::time::Instant>,
     pub hud_show_until: Option<std::time::Instant>,
     pub has_panorama: bool,
-}
-
-impl Default for UiState {
-    fn default() -> Self {
-        Self {
-            error_text: None,
-            error_show_until: None,
-            hud_show_until: None,
-            has_panorama: false,
-        }
-    }
 }
 
 impl UiState {
@@ -40,6 +29,7 @@ impl UiState {
         self.show_hud(3000);
     }
 
+    #[allow(dead_code)]
     pub fn show_panorama_replaced(&mut self) {
         self.show_hud(3000);
     }

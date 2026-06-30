@@ -142,32 +142,28 @@ impl ApplicationHandler for App {
 
         // Pointer tracking.
         match &event {
-            WindowEvent::CursorMoved { position, .. } => {
-                if self.dragging {
-                    if let Some(prev) = self.last_pointer {
-                        let dx = (position.x - prev.x) as f32;
-                        let dy = (position.y - prev.y) as f32;
-                        if dx != 0.0 || dy != 0.0 {
-                            self.camera.apply_drag(dx, dy);
-                            if self.camera.fire_first_interaction() {
-                                log::info!("first interaction: drag");
-                            }
+            WindowEvent::CursorMoved { position, .. } if self.dragging => {
+                if let Some(prev) = self.last_pointer {
+                    let dx = (position.x - prev.x) as f32;
+                    let dy = (position.y - prev.y) as f32;
+                    if dx != 0.0 || dy != 0.0 {
+                        self.camera.apply_drag(dx, dy);
+                        if self.camera.fire_first_interaction() {
+                            log::info!("first interaction: drag");
                         }
                     }
-                    self.last_pointer = Some(*position);
                 }
+                self.last_pointer = Some(*position);
             }
-            WindowEvent::MouseInput { state, button, .. } => {
-                if *button == MouseButton::Left {
-                    match state {
-                        ElementState::Pressed => {
-                            self.dragging = true;
-                            self.last_pointer = None;
-                        }
-                        ElementState::Released => {
-                            self.dragging = false;
-                            self.last_pointer = None;
-                        }
+            WindowEvent::MouseInput { state, button, .. } if *button == MouseButton::Left => {
+                match state {
+                    ElementState::Pressed => {
+                        self.dragging = true;
+                        self.last_pointer = None;
+                    }
+                    ElementState::Released => {
+                        self.dragging = false;
+                        self.last_pointer = None;
                     }
                 }
             }
