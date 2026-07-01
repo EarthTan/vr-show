@@ -59,6 +59,9 @@ jobs:
             --manifest-path crates/pano-viewer/Cargo.toml \
             --formats deb,appimage \
             -o dist
+          # cargo-packager outputs to crates/pano-viewer/dist, copy to workspace dist
+          cp crates/pano-viewer/dist/*.deb dist/ 2>/dev/null || true
+          cp crates/pano-viewer/dist/*.AppImage dist/ 2>/dev/null || true
 
       - name: Build portable tarball
         run: |
