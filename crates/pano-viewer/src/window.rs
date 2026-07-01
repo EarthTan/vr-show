@@ -35,7 +35,7 @@ impl WindowState {
         .map_err(|e| AppError::RequestAdapter(format!("{e}")))?;
         let (device, queue) =
             pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-                label: Some("vr-show_device"),
+                label: Some("pano-viewer_device"),
                 required_features: wgpu::Features::empty(),
                 required_limits: wgpu::Limits::downlevel_defaults(),
                 memory_hints: wgpu::MemoryHints::default(),

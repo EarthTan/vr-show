@@ -5,6 +5,8 @@
 1. `cargo build --release`
 2. `cargo run --release -- ./Qwen-Image-2512_00001_.png`
 
+Binary path: `target/release/pano-viewer` (or `pano-viewer.exe` on Windows).
+
 The bundled `Qwen-Image-2512_00001_.png` is a 2:1 equirectangular image suitable for testing.
 
 ## Scenarios

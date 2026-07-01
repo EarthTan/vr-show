@@ -1,0 +1,154 @@
+name: Sync package managers
+
+# After the `Release` workflow finishes, push a fresh formula/manifest to
+# EarthTan/homebrew-tap and EarthTan/scoop-bucket with the new version +
+# sha256 hashes. Triggered automatically by workflow_run on the Release
+# workflow, or manually via workflow_dispatch.
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v0.4.0). Required for manual runs."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${{ github.event.workflow_run.head_branch }}"
+            # head_branch is the ref like "v0.4.0" for tag runs.
+            if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
+              echo "Cannot infer version from ref '$VERSION' — aborting."
+              exit 0
+            fi
+          fi
+          VERSION_NO_V="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_no_v=$VERSION_NO_V" >> "$GITHUB_OUTPUT"
+
+      - name: Download release artifacts (sha256 + binaries)
+        id: download
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id || '' }}
+          path: artifacts
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pick hashes from downloaded artifacts
+        id: hashes
+        run: |
+          set -euo pipefail
+          # The release workflow also uploads SHA256SUMS.txt inside one of the
+          # artifact bundles; otherwise we recompute from the downloaded files.
+          cd artifacts
+          (sha256sum * 2>/dev/null || true) > /tmp/all.sha256
+          cat /tmp/all.sha256
+
+          # Pick the linux x86_64 tarball hash and the windows zip hash.
+          LINUX_HASH=$(sha256sum pano-viewer-*-linux-x86_64.tar.gz | awk '{print $1}')
+          WINDOWS_HASH=$(sha256sum pano-viewer-*-windows-x86_64.zip | awk '{print $1}')
+          SOURCE_TARBALL_URL="https://github.com/EarthTan/equirectangular-panorama-viewer/archive/refs/tags/v${{ steps.version.outputs.version_no_v }}.tar.gz"
+          SOURCE_TARBALL_HASH=$(curl -sSL "$SOURCE_TARBALL_URL" | sha256sum | awk '{print $1}')
+
+          echo "linux_hash=$LINUX_HASH" >> "$GITHUB_OUTPUT"
+          echo "windows_hash=$WINDOWS_HASH" >> "$GITHUB_OUTPUT"
+          echo "source_tarball_hash=$SOURCE_TARBALL_HASH" >> "$GITHUB_OUTPUT"
+          echo "source_tarball_url=$SOURCE_TARBALL_URL" >> "$GITHUB_OUTPUT"
+
+      # ── homebrew-tap ───────────────────────────────────────────
+      - name: Update homebrew-tap
+        env:
+          GH_PAT: ${{ secrets.HOMEBREW_TAP_PUSH_TOKEN }}
+        run: |
+          if [ -z "$GH_PAT" ]; then
+            echo "::warning::No HOMEBREW_TAP_PUSH_TOKEN secret — skipping Homebrew update."
+            exit 0
+          fi
+          git clone "https://x-access-token:${GH_PAT}@github.com/EarthTan/homebrew-tap.git" homebrew-tap
+          cd homebrew-tap
+          cat > Formula/pano-viewer.rb <<EOF
+          class PanoViewer < Formula
+            desc "A 360° panoramic image viewer written in pure Rust"
+            homepage "https://github.com/EarthTan/equirectangular-panorama-viewer"
+            url "${{ steps.hashes.outputs.source_tarball_url }}"
+            sha256 "${{ steps.hashes.outputs.source_tarball_hash }}"
+            license "MIT"
+
+            depends_on "rust" => :build
+
+            def install
+              system "cargo", "install", "--locked", "--bin", "pano-viewer"
+            end
+
+            test do
+              assert_match "pano-viewer", shell_output("#{bin}/pano-viewer --help 2>&1", 0)
+            end
+          end
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/pano-viewer.rb
+          if git diff --cached --quiet; then
+            echo "No changes to homebrew-tap."
+            exit 0
+          fi
+          git commit -m "pano-viewer: bump to ${{ steps.version.outputs.version }}"
+          git push origin main
+
+      # ── scoop-bucket ────────────────────────────────────────────
+      - name: Update scoop-bucket
+        env:
+          GH_PAT: ${{ secrets.SCOOP_BUCKET_PUSH_TOKEN }}
+        run: |
+          if [ -z "$GH_PAT" ]; then
+            echo "::warning::No SCOOP_BUCKET_PUSH_TOKEN secret — skipping Scoop update."
+            exit 0
+          fi
+          V="${{ steps.version.outputs.version_no_v }}"
+          VER="$V"
+          git clone "https://x-access-token:${GH_PAT}@github.com/EarthTan/scoop-bucket.git" scoop-bucket
+          cd scoop-bucket
+          cat > bucket/pano-viewer.json <<EOF
+          {
+              "version": "${VER}",
+              "description": "A 360° panoramic image viewer written in pure Rust",
+              "homepage": "https://github.com/EarthTan/equirectangular-panorama-viewer",
+              "license": "MIT",
+              "url": "https://github.com/EarthTan/equirectangular-panorama-viewer/releases/download/v${VER}/pano-viewer-${VER}-windows-x86_64.zip",
+              "hash": "${{ steps.hashes.outputs.windows_hash }}",
+              "bin": "pano-viewer.exe",
+              "depends": "",
+              "checkver": "github",
+              "autoupdate": {
+                  "url": "https://github.com/EarthTan/equirectangular-panorama-viewer/releases/download/v\$version/pano-viewer-\$version-windows-x86_64.zip"
+              }
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bucket/pano-viewer.json
+          if git diff --cached --quiet; then
+            echo "No changes to scoop-bucket."
+            exit 0
+          fi
+          git commit -m "pano-viewer: bump to ${{ steps.version.outputs.version }}"
+          git push origin main

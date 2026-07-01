@@ -1,0 +1,107 @@
+[package]
+name = "pano-viewer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "A 360° panoramic image viewer written in pure Rust."
+homepage.workspace = true
+repository.workspace = true
+readme = "../../README.md"
+keywords = ["panorama", "360", "equirectangular", "image-viewer", "wgpu"]
+categories = ["graphics", "multimedia"]
+exclude = ["../..", "shaders/**"]
+
+[[bin]]
+name = "pano-viewer"
+path = "src/main.rs"
+
+[dependencies]
+winit = { workspace = true }
+wgpu = { workspace = true, features = ["wgsl"] }
+egui = { workspace = true }
+egui-wgpu = { workspace = true }
+egui-winit = { workspace = true }
+glam = { workspace = true }
+image = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+pollster = { workspace = true }
+bytemuck = { workspace = true }
+rfd = "0.15"
+
+[package.metadata.deb]
+name = "pano-viewer"
+maintainer = "EarthTan <noreply@github.com>"
+copyright = "MIT"
+license-file = ["../../LICENSE", "4"]
+depends = "libc6, libgcc-s1"
+extended-description = """A 360° panoramic image viewer written in pure Rust.
+ Supports PNG and JPEG equirectangular images."""
+priority = "optional"
+section = "graphics"
+assets = [
+    ["../../README.md", "usr/share/doc/pano-viewer/README.md", "644"],
+    ["../../LICENSE", "usr/share/doc/pano-viewer/LICENSE", "644"],
+]
+
+# `cargo-packager` configuration — drives macOS .dmg / .app, Windows NSIS .exe,
+# Linux .deb and .AppImage, plus a universal macOS binary in CI.
+# Docs: https://docs.rs/cargo-packager/latest/cargo_packager/config/struct.Config.html
+[package.metadata.packager]
+before-packaging-command = "cargo build --release"
+product-name = "Pano Viewer"
+identifier = "com.github.earthtan.panoviewer"
+description = "A 360° panoramic image viewer written in pure Rust."
+long-description = """pano-viewer is a fast, lightweight 360° equirectangular panorama viewer.
+Drag-and-drop a PNG or JPEG image (2:1 aspect ratio recommended), scroll to zoom,
+and click-and-drag to look around."""
+homepage = "https://github.com/EarthTan/equirectangular-panorama-viewer"
+authors = ["EarthTan"]
+publisher = "EarthTan"
+copyright = "Copyright © 2026 EarthTan"
+license-file = "../../LICENSE"
+category = "Graphics and Design"
+icons = [
+    "icons/icon.icns",
+    "icons/icon-1024.png",
+    "icons/icon-512.png",
+    "icons/icon-256.png",
+]
+resources = [
+    "../../README.md",
+    "../../LICENSE",
+]
+
+[package.metadata.packager.macos]
+minimum-system-version = "10.15"
+frameworks = []
+exception-domain = ""
+
+[package.metadata.packager.dmg]
+window-size = { width = 660, height = 400 }
+app-position = { x = 180, y = 170 }
+appFolderPosition = { x = 480, y = 170 }
+
+[package.metadata.packager.windows]
+digest-algorithm = "sha256"
+allow-downgrades = true
+
+[package.metadata.packager.nsis]
+installer-icon = "icons/icon-256.png"
+installMode = "perMachine"
+languages = ["English", "SimpChinese"]
+
+[package.metadata.packager.linux]
+generate-desktop-entry = true
+
+[package.metadata.packager.deb]
+depends = ["libc6", "libgcc-s1"]
+section = "graphics"
+priority = "optional"
+
+[package.metadata.packager.appimage]
+libs = []
+bins = []

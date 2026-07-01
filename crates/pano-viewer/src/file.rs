@@ -46,7 +46,7 @@ mod tests {
 
     fn tmp_dir() -> std::path::PathBuf {
         let mut dir = std::env::temp_dir();
-        dir.push(format!("vr-show-test-{}", std::process::id()));
+        dir.push(format!("pano-viewer-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

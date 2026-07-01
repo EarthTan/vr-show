@@ -1,13 +1,16 @@
 [workspace]
 resolver = "2"
-members = ["crates/vr-show"]
+members = ["crates/pano-viewer"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT"
-authors = ["asyncb"]
+authors = ["EarthTan"]
+description = "A 360° panoramic image viewer written in pure Rust."
+homepage = "https://github.com/EarthTan/equirectangular-panorama-viewer"
+repository = "https://github.com/EarthTan/equirectangular-panorama-viewer"
 
 [workspace.dependencies]
 winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
